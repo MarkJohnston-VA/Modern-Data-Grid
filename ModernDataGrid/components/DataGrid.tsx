@@ -21,8 +21,8 @@ interface DataGridProps {
 
 interface DataGridState {
     records: any[];
-    selectedRecordIds: any[];
-    selectedRecords: any[];
+    selectedRecordId: any;
+    selectedRecord: any;
     filters: any;
     globalFilterValue: string;
     columns: ComponentFramework.PropertyHelper.DataSetApi.Column[];
@@ -43,8 +43,8 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
         this.state = {
             records: [],
             totalPages: 1,
-            selectedRecords: [],
-            selectedRecordIds: [],
+            selectedRecord: {},
+            selectedRecordId: {},
             filters: props.context.parameters.DataSource.columns.reduce((acc: any, col: any) => {
                 acc[col.name] = {
                     operator: FilterOperator.AND,
@@ -425,11 +425,11 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
         if (!gridIsEnabled) {
             return;
         }
-        const newSelectedRecordIds = e.value.map((record: any) => record.id);
-        this.props.context.parameters.DataSource.setSelectedRecordIds(newSelectedRecordIds)
+        const newSelectedRecordId = e.value.id;
+        this.props.context.parameters.DataSource.setSelectedRecordIds(newSelectedRecordId)
         this.setState({
-            selectedRecordIds: newSelectedRecordIds,
-            selectedRecords: e.value,
+            selectedRecordId: newSelectedRecordId,
+            selectedRecord: e.value,
         }, () => {
             this.forceUpdate();
         });
@@ -498,7 +498,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
     render() {
         const { context } = this.props;
         const paging = context.parameters.DataSource.paging;
-        const { records, selectedRecordIds, filters } = this.state;
+        const { records, selectedRecordId, filters } = this.state;
         const header = this.renderHeader();
         const displayPagination = context.parameters.DisplayPagination?.raw ?? true;
         const emptyMessage = context.parameters.EmptyMessage?.raw ?? "No records found.";
@@ -626,8 +626,8 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
                         }
                     }}
                     dataKey="id"
-                    selectionMode={selectionMode}
-                    selection={records.filter(record => selectedRecordIds.includes(record.id))}
+                    selectionMode={'single'} /* selectionMode variable here */
+                    selection={records.filter(record => selectedRecordId == record.id)}
                     onSelectionChange={this.onSelectionChange}
                     filters={filters}
                     filterDisplay={filterDisplayType as "menu" | "row"}
@@ -639,7 +639,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
                     style={{ width: '100%', minWidth: '0' }}
 
                 >
-                    <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
+                    <Column selectionMode="single" headerStyle={{ width: '3rem' }}></Column>
                     {context.parameters.DataSource.columns.map((col, index) => (
                         <Column
                             key={index}
