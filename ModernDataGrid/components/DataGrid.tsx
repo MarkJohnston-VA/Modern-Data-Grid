@@ -426,7 +426,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
             return;
         }
         const newSelectedRecordId = e.value.id;
-        this.props.context.parameters.DataSource.setSelectedRecordIds(newSelectedRecordId)
+        this.props.context.parameters.DataSource.setSelectedRecordIds([...newSelectedRecordId])
         this.setState({
             selectedRecordId: newSelectedRecordId,
             selectedRecord: e.value,
