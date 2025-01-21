@@ -21,7 +21,7 @@ interface DataGridProps {
 
 interface DataGridState {
     records: any[];
-    selectedRecordId: any;
+    selectedRecordId: string;
     selectedRecord: any;
     filters: any;
     globalFilterValue: string;
@@ -36,15 +36,18 @@ interface DataGridState {
 class DataGrid extends Component<DataGridProps, DataGridState> {
     private filterMap: Map<string, any> = new Map();
     private intervalId: NodeJS.Timeout | null = null;
+    private rowsPerPageOptions = [25, 50, 100];
+
     static contextType = React.createContext<ComponentFramework.Context<IInputs> | undefined>(undefined);
     declare context: React.ContextType<typeof DataGrid.contextType>;
+
     constructor(props: DataGridProps) {
         super(props);
         this.state = {
             records: [],
             totalPages: 1,
             selectedRecord: {},
-            selectedRecordId: {},
+            selectedRecordId: '',
             filters: props.context.parameters.DataSource.columns.reduce((acc: any, col: any) => {
                 acc[col.name] = {
                     operator: FilterOperator.AND,
@@ -162,9 +165,6 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
       
         return configs;
       }
-      
-     
-
 
       mapRecordsToState(force = false) {
         const { context } = this.props;
@@ -299,10 +299,8 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
 
         const filtersChanged = JSON.stringify(prevState.filters) !== JSON.stringify(this.state.filters);
         const prevFieldConfigurations = prevProps.context.parameters.FieldConfigurations?.raw || "";
-    const currentFieldConfigurations = this.props.context.parameters.FieldConfigurations?.raw || "";
-    
+        const currentFieldConfigurations = this.props.context.parameters.FieldConfigurations?.raw || "";    
         const fieldConfigurationsChanged = prevFieldConfigurations !== currentFieldConfigurations;
-
 
         if (dataSourceChanged || sortedRecordIdsChanged || filtersChanged || fieldConfigurationsChanged) {
             console.log("Changes detected in DataSource, records, filters, or FieldConfigurations. Updating state.");
@@ -333,7 +331,6 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
         }
     }
 
-
     hasRawProperty(param: any): param is { raw: any } {
         return param && typeof param === 'object' && 'raw' in param;
     }
@@ -357,6 +354,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
 
         return true;
     }
+
     // Triggers when new data set is loaded in
     shouldComponentUpdate(nextProps: Readonly<DataGridProps>, nextState: Readonly<DataGridState>): boolean {
         console.log("component udpated")
@@ -425,14 +423,17 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
         if (!gridIsEnabled) {
             return;
         }
-        const newSelectedRecordId = e.value.id;
-        this.props.context.parameters.DataSource.setSelectedRecordIds([...newSelectedRecordId])
-        this.setState({
-            selectedRecordId: newSelectedRecordId,
-            selectedRecord: e.value,
-        }, () => {
-            this.forceUpdate();
-        });
+        const newSelectedRecordId = e?.value?.id;
+        if(newSelectedRecordId !== undefined && newSelectedRecordId !== this.state.selectedRecordId) {
+            console.log(`Selecting RecordId: ${newSelectedRecordId}`, e.value);
+            this.props.context.parameters.DataSource.setSelectedRecordIds([newSelectedRecordId])
+            this.setState({
+                selectedRecordId: newSelectedRecordId,
+                selectedRecord: e.value,
+            }, () => {
+                this.forceUpdate();
+            });
+        }
     };
 
     renderHeader() {
@@ -460,6 +461,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
             </div>
         );
     }
+
     getFieldValue(col: ComponentFramework.PropertyHelper.DataSetApi.Column): string {
         return col.alias || col.name;
     }
@@ -503,13 +505,9 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
         const displayPagination = context.parameters.DisplayPagination?.raw ?? true;
         const emptyMessage = context.parameters.EmptyMessage?.raw ?? "No records found.";
         const filterDisplayType = "menu";
-        const allowedSelectionModes: Array<"multiple" | "checkbox"> = ["multiple", "checkbox"];
-        const selectionMode = (context.parameters.SelectionMode?.raw && allowedSelectionModes.includes(context.parameters.SelectionMode?.raw as any))
-            ? (context.parameters.SelectionMode?.raw as "multiple" | "checkbox")
-            : "multiple";
+        const allowSelecting = context.parameters.AllowSelecting?.raw ?? true;
         const allowSorting = context.parameters.AllowSorting?.raw ?? false;
         const allowFiltering = context.parameters.AllowFiltering?.raw ?? false;
-        const rowsPerPageOptions = [5, 15, 25];
 
         const onRenderItemColumn = (
             item?: Record<string, any>,
@@ -554,7 +552,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
                     header={header}
                     rows={paging.pageSize}
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                    rowsPerPageOptions={rowsPerPageOptions}
+                    rowsPerPageOptions={this.rowsPerPageOptions}
                     first={(this.state.currentPage - 1) * paging.pageSize}
                     totalRecords={paging.totalResultCount}
                     /*
@@ -570,7 +568,6 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
                 setPageSize(pageSize: number): void;
                 loadExactPage(pageNumber: number): void;
             }
-                    
                     */
 
                     onPage={(e: any) => {
@@ -626,7 +623,7 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
                         }
                     }}
                     dataKey="id"
-                    selectionMode={'single'} /* selectionMode variable here */
+                    selectionMode={'single'}
                     selection={records.filter(record => selectedRecordId == record.id)}
                     onSelectionChange={this.onSelectionChange}
                     filters={filters}
@@ -637,9 +634,8 @@ class DataGrid extends Component<DataGridProps, DataGridState> {
                     scrollable
                     scrollHeight="flex"
                     style={{ width: '100%', minWidth: '0' }}
-
                 >
-                    <Column selectionMode="single" headerStyle={{ width: '3rem' }}></Column>
+                    {allowSelecting && <Column selectionMode="single" headerStyle={{ width: '3rem' }}></Column>}
                     {context.parameters.DataSource.columns.map((col, index) => (
                         <Column
                             key={index}
